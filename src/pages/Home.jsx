@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { FaEllipsis, FaHeart } from "react-icons/fa6";
-import { FaRegHeart } from "react-icons/fa";
+import { FaEllipsis } from "react-icons/fa6";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { FiMessageCircle } from "react-icons/fi";
 import { LuSend } from "react-icons/lu";
 import { FiBookmark } from "react-icons/fi";
@@ -8,11 +8,11 @@ import { RiDeleteBin6Line } from "react-icons/ri";
 import { MdEdit } from "react-icons/md";
 import { MdOutlineRemoveRedEye } from "react-icons/md";
 import { FaCheck } from "react-icons/fa";
-import { SwiperSlide } from 'swiper/react';
-import ModalComment from "../components/ModalComment/ModalComment"
+import ModalComment from "../components/ModalComment/ModalComment";
 import ModalLikePublication from "../components/ModalLikePublication/ModalLikePublication";
-import 'swiper/css';
+import "swiper/css";
 import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
 
 const Home = () => {
   const [loading, setLoading] = useState(false);
@@ -22,78 +22,125 @@ const Home = () => {
   const [editingId, setEditingId] = useState(null);
   const [editDescription, setEditDescription] = useState("");
   const [isModalCommentOpen, setIsModalCommentOpen] = useState(false);
-  const [isModalLikeOpen, setIsModalLikeOpen] = useState(false)
+  // const [isModalLikeOpen, setIsModalLikeOpen] = useState(false);
   const [selectedPublicationId, setSelectedPublicationId] = useState(null);
 
-  const { user, token } = useSelector(state => state?.user);
-  console.log("SUER: ", user?._id)
+  const { user, token } = useSelector((state) => state?.user);
+
   const getAllPublications = async () => {
     setLoading(true);
     try {
       const response = await fetch(
         `https://backend-mars-hub.onrender.com/api/v1/publications?page=${page}&sort=-createdAt`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch publications');
+        throw new Error("Failed to fetch publications");
       }
 
       const data = await response.json();
-      console.log("CHECK: ", data)
-      setPublications(data?.data?.publications);
-      setTotalPages(data?.pages);
+      console.log("CHECK Publications: ", data);
+      setPublications(data?.data?.publications || []);
+      setTotalPages(data?.pages || 0);
     } catch (err) {
       console.error("Get publications error:", err);
+      toast.error("Publikatsiyalarni olishda xatolik!");
     } finally {
       setLoading(false);
     }
   };
 
   const handleLikePublication = async (publicationId) => {
+    const previousPublications = [...publications];
+    const publication = publications.find((pub) => pub?._id === publicationId);
+    const isLiked = publication?.likes?.some(
+      (like) => like.userId?._id === user?._id
+    );
+
+    const newLike = {
+      userId: {
+        _id: user?._id,
+        username: user?.username ,
+        firstName: user?.firstName,
+        profileImage: user?.profileImage
+      },
+      date: new Date().toISOString(),
+    };
+
+
+    setPublications((prev) =>
+      prev.map((pub) =>
+        pub?._id === publicationId
+          ? {
+              ...pub,
+              likes: isLiked
+                ? pub.likes.filter((like) => like.userId?._id !== user?._id)
+                : [...pub.likes, newLike],
+            }
+          : pub
+      )
+    );
+
     try {
       const response = await fetch(
         `https://backend-mars-hub.onrender.com/api/v1/publications/${publicationId}/like`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ userId: user?._id })
+          body: JSON.stringify({ userId: user?._id }),
         }
       );
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message);
+        setPublications(previousPublications);
+        throw new Error(responseData.message || "Like qilishda xatolik!");
       }
 
-      setPublications(prev => prev.map(pub =>
-        pub?._id === publicationId
-          ? {
-            ...pub,
-            likes: pub?.likes?.includes(user?._id)
-              ? pub?.likes.filter(id => id !== user?._id)
-              : [...pub?.likes, user?._id]
-          }
-          : pub
-      ));
+      let serverLikes = responseData.data?.likes || [];
+
+
+      if (!isLiked && !serverLikes.some((like) => like.userId?._id === user?._id)) {
+        serverLikes = [...serverLikes, newLike];
+      }
+      else if (isLiked && serverLikes.some((like) => like.userId?._id === user?._id)) {
+        serverLikes = serverLikes.filter((like) => like.userId?._id !== user?._id);
+      }
+
+      setPublications((prev) =>
+        prev.map((pub) =>
+          pub?._id === publicationId
+            ? {
+                ...pub,
+                likes: serverLikes,
+              }
+            : pub
+        )
+      );
+
+
     } catch (err) {
-      console.error(err);
+      setPublications(previousPublications);
+      console.error("Like error:", err);
+      toast.error("Like qilishda xatolik: " + err.message);
     }
   };
 
   const handleDeletePublication = async (publicationId) => {
     const publication = publications.find((p) => p?._id === publicationId);
     if (publication?.author?._id !== user?._id) {
-      return toast.error("Siz bu publicationni joylashtirmagansiz!");
+      return toast.error("Siz bu publikatsiyani joylashtirmagansiz!");
     }
 
     try {
@@ -115,16 +162,17 @@ const Home = () => {
       setPublications((prev) =>
         prev.filter((pub) => pub?._id !== publicationId)
       );
-      toast.success("Publication o‘chirildi!");
+      toast.success("Publikatsiya o‘chirildi!");
     } catch (err) {
       console.error("Delete error:", err);
+      toast.error("O‘chirishda xatolik: " + err.message);
     }
   };
 
   const handleEditPublication = async (publicationId) => {
     const publication = publications.find((p) => p?._id === publicationId);
     if (publication?.author?._id !== user?._id) {
-      return toast.error("Siz bu publicationni joylashtirmagansiz!");
+      return toast.error("Siz bu publikatsiyani joylashtirmagansiz!");
     }
 
     try {
@@ -158,47 +206,94 @@ const Home = () => {
       toast.success("Tahrir muvaffaqiyatli saqlandi!");
     } catch (err) {
       console.error("Edit error:", err.message);
-      toast.error("Edit xatolik: " + err.message);
+      toast.error("Tahrir xatolik: " + err.message);
     }
   };
 
   const handleAddComment = async (publicationId, commentText) => {
+    const tempCommentId = `temp-${Date.now()}`;
+    const tempComment = {
+      _id: tempCommentId,
+      text: commentText,
+      userId: {
+        _id: user?._id,
+        username: user?.username || "User",
+        profileImage: user?.profileImage || "/default.jpg",
+      },
+      date: new Date().toISOString(),
+    };
+
+    setPublications((prev) =>
+      prev.map((pub) =>
+        pub._id === publicationId
+          ? { ...pub, comments: [...pub.comments, tempComment] }
+          : pub
+      )
+    );
+
     try {
       const response = await fetch(
         `https://backend-mars-hub.onrender.com/api/v1/publications/${publicationId}/comment`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             text: commentText,
-            userId: user?._id
-          })
+            userId: user?._id,
+          }),
         }
       );
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add comment');
+        toast.error(responseData.message || "Izoh qo'shishda xatolik!");
+        return true;
       }
 
-      const newComment = await response.json();
-      setPublications(prev => prev.map(pub =>
-        pub._id === publicationId
-          ? { ...pub, comments: [...pub.comments, newComment] }
-          : pub
-      ));
-
+      const newComment = responseData.data || responseData;
+      setPublications((prev) =>
+        prev.map((pub) =>
+          pub._id === publicationId
+            ? {
+                ...pub,
+                comments: [
+                  ...pub.comments.filter((c) => c._id !== tempCommentId),
+                  {
+                    _id: newComment._id || newComment.id || tempCommentId,
+                    text: newComment.text || commentText,
+                    userId: {
+                      _id:
+                        newComment.userId?._id ||
+                        newComment.user?._id ||
+                        user?._id,
+                      username:
+                        newComment.userId?.username ||
+                        newComment.user?.username ||
+                        user?.username || "User",
+                      profileImage:
+                        newComment.userId?.profileImage ||
+                        newComment.user?.profileImage ||
+                        user?.profileImage || "/default.jpg",
+                    },
+                    date: newComment.date || new Date().toISOString(),
+                  },
+                ],
+              }
+            : pub
+        )
+      );
 
       return true;
     } catch (err) {
       console.error("Comment error:", err);
-      return false;
+      toast.error("Izoh qo‘shishda xatolik: " + err.message);
+      return true;
     }
   };
-
 
   const startEditing = (publication) => {
     setEditingId(publication?._id);
@@ -210,10 +305,10 @@ const Home = () => {
     setIsModalCommentOpen(true);
   };
 
-  const openLikeModal = (publicationId) => {
-    setSelectedPublicationId(publicationId);
-    setIsModalLikeOpen(true)
-  }
+  // const openLikeModal = (publicationId) => {
+  //   setSelectedPublicationId(publicationId);
+  //   setIsModalLikeOpen(true);
+  // };
 
   useEffect(() => {
     if (token) {
@@ -255,9 +350,13 @@ const Home = () => {
               <div className="flex items-center justify-between">
                 <div className="flex gap-2 items-center">
                   <img
-                    src={`${import.meta.env.VITE_APP_API_URL}${item?.author?.profileImage || "asd"}`}
+                    src={`${import.meta.env.VITE_APP_API_URL}${
+                      item?.author?.profileImage || "/default.jpg"
+                    }`}
                     className="rounded-full w-8 h-8"
-                    alt={typeof item?.author === "string" ? item?.author : "User"}
+                    alt={
+                      typeof item?.author === "string" ? item?.author : "User"
+                    }
                     crossOrigin="anonymous"
                   />
                   <p className="flex flex-col">
@@ -276,13 +375,13 @@ const Home = () => {
                         className="flex items-center gap-1 text-xs font-medium text-base-content"
                         onClick={() => startEditing(item)}
                       >
-                        <MdEdit /> Edit
+                        <MdEdit /> Tahrirlash
                       </button>
                       <button
                         className="flex items-center gap-1 text-xs font-medium text-error"
                         onClick={() => handleDeletePublication(item?._id)}
                       >
-                        <RiDeleteBin6Line /> Delete
+                        <RiDeleteBin6Line /> O‘chirish
                       </button>
                     </ul>
                   </div>
@@ -301,7 +400,7 @@ const Home = () => {
                   ) : item.content[0].type === "video" ? (
                     <video
                       controls
-                      className="w-full h-full rounded-md"
+                      className="w-full h-full rounded-md object-cover"
                       src={`https://backend-mars-hub.onrender.com${item?.content[0]?.url}`}
                       crossOrigin="anonymous"
                     />
@@ -312,12 +411,12 @@ const Home = () => {
               {item?.description && (
                 <div className="mt-2">
                   {editingId === item._id ? (
-                    <div className="flex items-center gap-2 ">
+                    <div className="flex items-center gap-2">
                       <textarea
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
                         className="textarea textarea-bordered w-full text-sm"
-                        placeholder="Edit description..."
+                        placeholder="Tavsifni tahrirlash..."
                       />
                       <button
                         className="btn btn-sm btn-primary h-20"
@@ -342,67 +441,61 @@ const Home = () => {
               )}
               <div className="flex items-center justify-between mb-5">
                 <div className="flex gap-4">
-                  <button className="flex items-center gap-1">
-                    {item.likes.includes(user?._id) ? (
-                      <FaHeart
-                        className="text-red-500 cursor-pointer"
-                        onClick={() => handleLikePublication(item?._id)}
-                      />
-                    ) : (
-                      <FaRegHeart
-                        className="text-base-content cursor-pointer"
-                        onClick={() => handleLikePublication(item?._id)}
-                      />
-                    )}
-
-                    {item.likes.length > 0 && (
-                      <span className="text-xs" onClick={() => openLikeModal(item?._id)}>
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="flex items-center"
+                      onClick={() => handleLikePublication(item?._id)}
+                    >
+                      {item?.likes?.some(
+                        (like) => like.userId?._id === user?._id
+                      ) ? (
+                        <FaHeart className="text-red-500 cursor-pointer" />
+                      ) : (
+                        <FaRegHeart className="text-base-content cursor-pointer" />
+                      )}
+                    </button>
+                    {item?.likes?.length > 0 && (
+                      <span
+                        className="text-xs "
+                        // onClick={() => openLikeModal(item?._id)}
+                      >
                         {item.likes.length}
                       </span>
                     )}
-                  </button>
+                  </div>
 
                   <button
                     className="flex items-center gap-1"
                     onClick={() => openCommentModal(item?._id)}
                   >
-                    <FiMessageCircle className="text-md" />
+                    <FiMessageCircle className="text-md cursor-pointer" />
                     {item?.comments?.length > 0 && (
                       <span className="text-xs">{item?.comments?.length}</span>
                     )}
-                  </button>
-                  <button>
-                    <LuSend />
-                  </button>
-                </div>
-                <div className="text-md">
-                  <button>
-                    <FiBookmark />
                   </button>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <SwiperSlide>
-            <div className="flex items-center justify-center text-base-content text-2xl">
-              No publications yet
-            </div>
-          </SwiperSlide>
+          <div className="flex items-center justify-center text-base-content h-screen text-2xl">
+            Hozircha publikatsiyalar yo‘q
+          </div>
         )}
       </div>
-      {selectedPublicationId && (
+      {/* {selectedPublicationId && (
         <ModalLikePublication
           isOpen={isModalLikeOpen}
           onClose={() => {
             setIsModalLikeOpen(false);
-            setSelectedPublicationId(null)
+            setSelectedPublicationId(null);
           }}
           likes={
-            publications.find((pub) => pub?._id === selectedPublicationId)?.likes || []
+            publications.find((pub) => pub?._id === selectedPublicationId)
+              ?.likes || []
           }
         />
-      )}
+      )} */}
       {selectedPublicationId && (
         <ModalComment
           isOpen={isModalCommentOpen}

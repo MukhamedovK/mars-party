@@ -1,13 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react'; // Added useEffect
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-
+import Upload from "/upload.png"
 const AddPublication = () => {
     const fileInputRef = useRef(null);
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [description, setDescription] = useState("");
-    const [location, setLocation] = useState("Uzbekistan(Tashkent)");
     const [loading, setLoading] = useState(false);
     const username = useSelector(state=>state.user); // State to hold username
     const token = useSelector(state => state.user.token)
@@ -45,14 +44,9 @@ const AddPublication = () => {
       formData.append("file", file);
       formData.append("author", username); // Use dynamic username instead of "test"
       formData.append("description", description);
-      formData.append("location", location); // Added location to formData
   
       setLoading(true);
-      console.log(token)
-      console.log("request: ",{
-          token,
-          formData
-        })
+
       try {
         const response = await fetch("https://backend-mars-hub.onrender.com/api/v1/publications/create", {
           method: "POST",
@@ -64,13 +58,11 @@ const AddPublication = () => {
         
         if (response.ok) {
           const result = await response.json();
-          console.log("Muvaffaqiyatli yuklandi: ", result);
           toast.success("Fayl muvaffaqiyatli yuklandi!");
   
           setFile(null);
           setPreview(null);
           setDescription("");
-          setLocation("Uzbekistan(Tashkent)");
         } else {
           const errorData = await response.json();
           toast.error(errorData.message || "Xatolik yuz berdi!");
@@ -100,8 +92,8 @@ const AddPublication = () => {
           ) : (
             <>
               <img
-                src=""
-                alt="Upload Placeholder"
+                src={Upload}
+                alt="Upload"
                 className="w-20 h-14 xl:w-36 xl:h-28 lg:w-32 lg:h-24 md:w-28 md:h-20 sm:w-20 sm:h-14"
               />
               <p className="lg:text-md md:text-sm sm:text-xs text-xs text-primary mt-2">Faylni yuklash uchun bosing</p>
@@ -122,16 +114,6 @@ const AddPublication = () => {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-        <select
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="select w-full"
-        >
-          <option value="Uzbekistan(Tashkent)">Uzbekistan(Tashkent)</option>
-          <option value="Qo'yliq">Qo'yliq</option>
-          <option value="Yunusobod">Yunusobod</option>
-          <option value="Sergeli">Sergeli</option>
-        </select>
         <button
           className='btn btn-primary w-full'
           onClick={sendPublication}
