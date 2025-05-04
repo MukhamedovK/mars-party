@@ -24,6 +24,7 @@ import { setupInterceptors } from "./hooks/customAxios.js";
 import QuizGame from "./pages/Games/QuizGame.jsx";
 import SearchUsers from "./pages/SearchUsers.jsx";
 import HangmanGame from "./components/HangmanGame/HangmanGame.jsx"
+import IframeGame from "./components/IframeGame.jsx";
 
 const router = createBrowserRouter([
   {
@@ -85,7 +86,13 @@ const router = createBrowserRouter([
       {
         path: "/search-users",
         element: <SearchUsers/>
-      }
+      },
+      {
+        path: "/games/iframe/:id",
+        element: <IframeGame />,
+      },
+      
+      
     ],
   },
   {

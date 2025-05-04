@@ -18,24 +18,7 @@ const Sidebar = () => {
   ];
 
   const swiperItems = [
-    {
-      title: "Online suxbatlashing!",
-      image: "/chat.png",
-      link: "/chat",
-      buttonLabel: "Chatga o'tish",
-    },
-    {
-      title: "Yangi loyiha qo'shing",
-      image: "https://static.thenounproject.com/png/2534766-200.png",
-      link: "/projects",
-      buttonLabel: "Yangi loyiha qo'shing",
-    },
-    {
-      title: "O'yinlarni ko'ring",
-      image: "https://png.pngtree.com/png-clipart/20210912/original/pngtree-play-game-play-game-boy-png-image_6752383.jpg",
-      link: "/games",
-      buttonLabel: " O'yinlarni ko'ring",
-    },
+   
   ];
 
   return (
