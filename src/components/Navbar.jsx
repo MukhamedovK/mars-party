@@ -322,7 +322,7 @@ const Navbar = () => {
               <div className="w-10 rounded-full">
                 <img
                   alt="User Avatar"
-                  src={`https://backend-mars-hub.onrender.com${user.profileImage}`}
+                  src={`https://backend-mars-hub.onrender.com${user?.profileImage}`}
                    crossOrigin="anonymous"
                 />
               </div>
